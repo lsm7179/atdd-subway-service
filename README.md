@@ -181,7 +181,7 @@ PathFinder인터페이스를 도출하고 기존 파일은 JgraphtPathFinder로 
 의도된 예외상황은 커스텀예외처리 했습니다~
 ~~~
 
-### 4단계 - 요금 조회
+## 4단계 - 요금 조회
 * [x] 인수테스트 추가 및 수정
   * [x] 경로 조회 시 거리 기준 요금
   * [x] 노선별 추가 요금 정책
@@ -194,3 +194,38 @@ PathFinder인터페이스를 도출하고 기존 파일은 JgraphtPathFinder로 
   * [x] 노선에 추가 요금 필드를 추가
   * [x] 노선별 추가 요금 정책 추가
   * [x] 연령별 할인 정책 추가
+
+### 피드백 정리
+Q1. 예외상황 처리를 할때 BAD_REQUEST, INTERNAL_SERVER_ERROR 구분하는 방법이 있을까요?
+저는 Repository 에서 find orElseThrow ->  BAD_REQUEST
+나머지는 INTERNAL_SERVER_ERROR로 처리를 했습니다.
+
+A1. HttpStatus 자체에 대한 부분은 모질라 사이트를 참고해주시면 좋을 것 같은데요.
+https://developer.mozilla.org/ko/docs/Web/HTTP/Status
+일반적으로 4xx는 클라이언트 문제, 5xx는 서버 문제를 나타내기 때문에, BAD_REQUEST는 클라이언트에서 올바르지 않은 데이터를 넘겨줬다고 판단이 될 때 사용해주시면 될 것 같고
+INTERNAL_SERVER_ERROR는 서버에 문제가 있을 경우 사용해주시면 될 것 같습니다 ㅎㅎ
+코드 레벨에서의 질문이라면, 저는
+~~~
+public abstract class CustomException extends RuntimeException {
+HttpStatus status();
+Object body();
+}
+
+@ExceptionHandler(CustomException.class)
+public ResponseEntity<Object> customException(final CustomException e) {
+return ResponseEntity.status(e.status())
+.body(e.body());
+}
+~~~
+와 같이 커스텀 예외처리에서 HttpStatus도 가지는 형태를 만들 수 있을 것 같아요!
+
+Q2. DistanceChargeRule 를 보시면 거리별 요금 계산을 하는 부분이 Early Return 모양을 취하고 있습니다.
+지금은 괜찮지만 만약 거리별 요금규칙이 10개로 늘어나면 if문이 계속 늘어나는 형태처럼 보입니다.
+최선을 다해서 코딩해봤는데 혹시나 다른 방법이 있을까요?
+
+A2. 사실 말씀하신 것 처럼 지금의 구조가 확장성이 높은 구조는 아니지만, 현재 상태에서 가독성이 떨어지는 느낌은 없어서 코멘트를 남기진 않았습니다 ㅎㅎ
+해당 요구사항이 깔끔하고 간단하게 구현하긴 힘든 부분이라, 오히려 지금의 구조에서 확장성을 고려한다면 가독성이 떨어지는 문제가 생길 것 같아요
+추후 거리별 요금 계산에 대한 케이스가 많아지면 다른 방법으로 리팩토링 할 수 있을 것 같은데요
+지금의 요구사항에선 작성해주신 것도 충분히 좋은 구현이라고 생각 됐습니다 :)
+만약 요금 계산에 대한 처리가 복잡해진다면, 책임 연쇄 패턴과 같은 패턴을 도입하는 방법도 있을 것 같네요!!
+물론 어떠한 요금 체계가 나오냐에 따라 달라질 수 있는 부분이고, 그래서 조금 더 많은 케이스가 생겨봐야 확장성을 설계하기 용이할 것 같아요!
